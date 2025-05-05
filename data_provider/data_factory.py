@@ -33,7 +33,10 @@ def data_provider(args, flag):
         data_set = Data(
             args = args,
             root_path=args.root_path,
-            win_size=args.seq_len,
+            data_path=args.data_path,
+            size = [args.seq_len, args.seq_len, args.seq_len],
+            features=args.features,
+            target = args.target,
             flag=flag,
         )
         print(flag, len(data_set))
