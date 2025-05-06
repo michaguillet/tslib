@@ -42,7 +42,8 @@ class Exp_Short_Term_Forecast(Exp_Basic):
 
     def _select_criterion(self, loss_name='MSE'):
         if loss_name == 'MSE':
-            return nn.MSELoss()
+            mse = nn.MSELoss()
+            return lambda ins, freq_map, forecast, target, mask: mse(forecast, target)
         elif loss_name == 'MAPE':
             return mape_loss()
         elif loss_name == 'MASE':
@@ -92,7 +93,14 @@ class Exp_Short_Term_Forecast(Exp_Basic):
                 batch_y = batch_y[:, -self.args.pred_len:, f_dim:].to(self.device)
 
                 batch_y_mark = batch_y_mark[:, -self.args.pred_len:, f_dim:].to(self.device)
-                loss_value = criterion(batch_x, self.args.frequency_map, outputs, batch_y, batch_y_mark)
+
+                loss_value = criterion(
+                    batch_x,
+                    self.args.frequency_map,
+                    outputs,
+                    batch_y,
+                    batch_y_mark
+                )
                 loss_sharpness = mse((outputs[:, 1:, :] - outputs[:, :-1, :]), (batch_y[:, 1:, :] - batch_y[:, :-1, :]))
                 loss = loss_value  # + loss_sharpness * 1e-5
                 train_loss.append(loss.item())

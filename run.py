@@ -7,7 +7,7 @@ from exp.exp_imputation import Exp_Imputation
 from exp.exp_short_term_forecasting import Exp_Short_Term_Forecast
 from exp.exp_anomaly_detection import Exp_Anomaly_Detection
 from exp.exp_classification import Exp_Classification
-from utils.print_args import print_args
+from utils.print_args import print_args     
 import random
 import numpy as np
 
@@ -36,6 +36,7 @@ if __name__ == '__main__':
     parser.add_argument('--target', type=str, default='OT', help='target feature in S or MS task')
     parser.add_argument('--freq', type=str, default='h',
                         help='freq for time features encoding, options:[s:secondly, t:minutely, h:hourly, d:daily, b:business days, w:weekly, m:monthly], you can also use more detailed freq like 15min or 3h')
+    parser.add_argument("--freq_map",  type=int, default=None, help="Mapping frequency to number of time features")
     parser.add_argument('--checkpoints', type=str, default='./checkpoints/', help='location of model checkpoints')
 
     # forecasting task
@@ -141,6 +142,9 @@ if __name__ == '__main__':
     parser.add_argument('--patch_len', type=int, default=16, help='patch length')
 
     args = parser.parse_args()
+    
+    if args.data != 'm4':
+        args.frequency_map = args.freq_map or 1
     if torch.cuda.is_available() and args.use_gpu:
         args.device = torch.device('cuda:{}'.format(args.gpu))
         print('Using GPU')
