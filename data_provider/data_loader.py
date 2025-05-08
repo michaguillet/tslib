@@ -325,6 +325,102 @@ class Dataset_Custom(Dataset):
 
         return insample, insample_mask
 
+class Dataset_Custom_NPY(Dataset):
+    def __init__(self, args, flag='train', size=None,
+                 data_paths=None, scale=True):
+        """
+        data_paths: full (absolute) file‐paths for train/val/test .npy
+        """
+        assert flag in ('train','val','test')
+        assert data_paths and all(k in data_paths for k in ('train','val','test'))
+
+        if size is None:
+            self.seq_len, self.label_len, self.pred_len = 24*4*4, 24*4, 24*4
+        else:
+            self.seq_len, self.label_len, self.pred_len = size
+
+        self.args     = args
+        self.scale    = scale
+        self.set_type = {'train':0,'val':1,'test':2}[flag]
+
+        # **use absolute paths directly—no os.path.join needed**
+        self._paths = {
+            0: data_paths['train'],
+            1: data_paths['val'],
+            2: data_paths['test'],
+        }
+        self.__read_data__()
+
+    def __read_data__(self):
+        # helper to load & flatten raw arrays to 2D
+        def load_and_flatten(path):
+            arr = np.load(path)
+            if arr.ndim == 4:
+                # expecting (n_jumps, coord_dim, n_markers, T)
+                n_jumps, coord_dim, n_markers, T = arr.shape
+                # → (n_jumps, T, n_markers, coord_dim)
+                arr = arr.transpose(0, 3, 2, 1)
+                # → (n_jumps*T, n_markers*coord_dim)
+                arr = arr.reshape(n_jumps * T, n_markers * coord_dim)
+            elif arr.ndim > 2:
+                # flatten any other extra dims
+                arr = arr.reshape(arr.shape[0], -1)
+            # now arr is (N, D)
+            return arr
+
+        # 1) fit scaler on train split only
+        self.scaler = StandardScaler()
+        if self.scale:
+            train_flat = load_and_flatten(self._paths[0])
+            self.scaler.fit(train_flat)
+
+        # 2) load & (optionally) scale this split
+        data = load_and_flatten(self._paths[self.set_type])
+        if self.scale:
+            data = self.scaler.transform(data)
+
+        # 3) store for sliding-window indexing
+        self.data_x = data
+        self.data_y = data
+
+        # 4) augmentation hook (train only)
+        if self.set_type == 0 and getattr(self.args, 'augmentation_ratio', 0) > 0:
+            self.data_x, self.data_y, _ = run_augmentation_single(
+                self.data_x, self.data_y, self.args
+            )
+
+    def __getitem__(self, index):
+        # carve out [seq_len] for x, then [label_len+pred_len] for y
+        s_begin = index
+        s_end   = s_begin + self.seq_len
+        r_begin = s_end - self.label_len
+        r_end   = r_begin + self.label_len + self.pred_len
+
+        seq_x = self.data_x[s_begin:s_end]
+        seq_y = self.data_y[r_begin:r_end]
+
+        # no date‐stamp support for raw npy — drop those
+        if getattr(self.args, 'task_name', None) == 'anomaly_detection':
+            return seq_x, seq_y
+        else:
+            # return dummy stamps of zeros if your model expects them
+            dummy_x_mark = np.zeros((self.seq_len, 1), dtype=np.float32)
+            dummy_y_mark = np.zeros((self.label_len + self.pred_len, 1), dtype=np.float32)
+            return seq_x, seq_y, dummy_x_mark, dummy_y_mark
+
+    def __len__(self):
+        # total windows = N - seq_len - pred_len + 1
+        return len(self.data_x) - self.seq_len - self.pred_len + 1
+
+    def inverse_transform(self, data):
+        return self.scaler.inverse_transform(data)
+
+    def last_insample_window(self):
+        # identical to your original
+        ts_window     = self.data_x[-self.seq_len:]
+        insample      = ts_window.reshape(1, self.seq_len, -1)
+        insample_mask = np.ones_like(insample)
+        return insample, insample_mask
 
 class Dataset_M4(Dataset):
     def __init__(self, args, root_path, flag='pred', size=None,

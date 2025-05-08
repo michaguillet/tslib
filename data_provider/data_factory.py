@@ -1,5 +1,5 @@
 from data_provider.data_loader import Dataset_ETT_hour, Dataset_ETT_minute, Dataset_Custom, Dataset_M4, PSMSegLoader, \
-    MSLSegLoader, SMAPSegLoader, SMDSegLoader, SWATSegLoader, UEAloader
+    MSLSegLoader, SMAPSegLoader, SMDSegLoader, SWATSegLoader, UEAloader, Dataset_Custom_NPY
 from data_provider.uea import collate_fn
 from torch.utils.data import DataLoader
 
@@ -15,7 +15,8 @@ data_dict = {
     'SMAP': SMAPSegLoader,
     'SMD': SMDSegLoader,
     'SWAT': SWATSegLoader,
-    'UEA': UEAloader
+    'UEA': UEAloader,
+    'ExerCube': Dataset_Custom_NPY,
 }
 
 
@@ -29,23 +30,23 @@ def data_provider(args, flag):
     freq = args.freq
 
     if args.task_name == 'anomaly_detection':
-        drop_last = False
+        # make sure you've set args.data = 'custom_npy'
+        # and args.data_paths = {'train':..., 'val':..., 'test':...}
         data_set = Data(
-            args = args,
-            root_path=args.root_path,
-            data_path=args.data_path,
-            size = [args.seq_len, args.seq_len, args.seq_len],
-            features=args.features,
-            target = args.target,
-            flag=flag,
+            args       = args,
+            flag       = flag,
+            size       = [args.seq_len, args.seq_len, args.seq_len],
+            data_paths = args.data_paths,
+            scale      = True
         )
         print(flag, len(data_set))
         data_loader = DataLoader(
             data_set,
-            batch_size=batch_size,
-            shuffle=shuffle_flag,
-            num_workers=args.num_workers,
-            drop_last=drop_last)
+            batch_size   = batch_size,
+            shuffle      = shuffle_flag,
+            num_workers  = args.num_workers,
+            drop_last    = drop_last
+        )
         return data_set, data_loader
     elif args.task_name == 'classification':
         drop_last = False
@@ -65,25 +66,36 @@ def data_provider(args, flag):
         )
         return data_set, data_loader
     else:
-        if args.data == 'm4':
-            drop_last = False
-        data_set = Data(
-            args = args,
-            root_path=args.root_path,
-            data_path=args.data_path,
-            flag=flag,
-            size=[args.seq_len, args.label_len, args.pred_len],
-            features=args.features,
-            target=args.target,
-            timeenc=timeenc,
-            freq=freq,
-            seasonal_patterns=args.seasonal_patterns
-        )
+        # ── NPY‐based loader for ExerCube ──
+        if args.data == 'ExerCube':
+            data_set = Data(
+                args       = args,
+                flag       = flag,
+                size       = [args.seq_len, args.label_len, args.pred_len],
+                data_paths = args.data_paths,
+                scale      = True
+            )
+        # ── “Old” CSV & built-in datasets ──
+        else:
+            data_set = Data(
+                args              = args,
+                root_path         = args.root_path,
+                data_path         = args.data_path,
+                flag              = flag,
+                size              = [args.seq_len, args.label_len, args.pred_len],
+                features          = args.features,
+                target            = args.target,
+                timeenc           = timeenc,
+                freq              = freq,
+                seasonal_patterns = args.seasonal_patterns
+            )
+
         print(flag, len(data_set))
         data_loader = DataLoader(
             data_set,
-            batch_size=batch_size,
-            shuffle=shuffle_flag,
-            num_workers=args.num_workers,
-            drop_last=drop_last)
+            batch_size   = args.batch_size,
+            shuffle      = False if flag.lower()=='test' else True,
+            num_workers  = args.num_workers,
+            drop_last    = False
+        )
         return data_set, data_loader

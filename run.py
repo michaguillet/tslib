@@ -28,9 +28,9 @@ if __name__ == '__main__':
                         help='model name, options: [Autoformer, Transformer, TimesNet]')
 
     # data loader
-    parser.add_argument('--data', type=str, required=True, default='ETTh1', help='dataset type')
-    parser.add_argument('--root_path', type=str, default='./data/ETT/', help='root path of the data file')
-    parser.add_argument('--data_path', type=str, default='ETTh1.csv', help='data file')
+    parser.add_argument('--data', type=str, required=True, default='ExerCube', help='dataset type')
+    parser.add_argument('--root_path', type=str, default='./', help='root path of the data file')
+    parser.add_argument('--data_path', type=str, default='', help='data file')
     parser.add_argument('--features', type=str, default='M',
                         help='forecasting task, options:[M, S, MS]; M:multivariate predict multivariate, S:univariate predict univariate, MS:multivariate predict univariate')
     parser.add_argument('--target', type=str, default='OT', help='target feature in S or MS task')
@@ -142,6 +142,12 @@ if __name__ == '__main__':
     parser.add_argument('--patch_len', type=int, default=16, help='patch length')
 
     args = parser.parse_args()
+    
+    args.data_paths = {
+        'train': '/home/ubuntu/BA-Motion-Anomalies/Data_Not_In_Repo/ExerCube/exercise_data/training/jump_normalized_cleaned_derivates.npy',
+        'val':   '/home/ubuntu/BA-Motion-Anomalies/Data_Not_In_Repo/ExerCube/exercise_data/validation/jump_normalized_cleaned_derivates.npy',
+        'test':  '/home/ubuntu/BA-Motion-Anomalies/Data_Not_In_Repo/ExerCube/exercise_data/test/jump_normalized_cleaned_derivates.npy'
+    }
     
     if args.data != 'm4':
         args.frequency_map = args.freq_map or 1
