@@ -307,6 +307,23 @@ class Dataset_Custom(Dataset):
 
     def inverse_transform(self, data):
         return self.scaler.inverse_transform(data)
+    
+    def last_insample_window(self):
+        """
+        Return the last `seq_len` points of self.data_x, plus a mask.
+        Matches the (x, _) = ... unpack in the tutorial's vali() method.
+        """
+        # grab the final seq_len timesteps
+        ts_window = self.data_x[-self.seq_len:]                   # shape: (seq_len, feature_dim)
+
+        # reshape to include a “series” batch dimension up front
+        # shape becomes (1, seq_len, feature_dim)
+        insample = ts_window.reshape(1, self.seq_len, -1)
+
+        # mask of ones (no padding) with same shape
+        insample_mask = np.ones_like(insample)
+
+        return insample, insample_mask
 
 
 class Dataset_M4(Dataset):
